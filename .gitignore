@@ -1,0 +1,41 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.toml
+uv.lock
+configs.py
+
+# ---- Virtual environments ----
+.venv/
+env/
+venv/
+.uv.lock
+
+
+# ---- IDEs ----
+.idea/
+.vscode/
+.ai/
+node_modules/
+
+pyproject.toml
+
+# ---- System files ----
+desktop.ini
+.DS_Store
+Thumbs.db
+
+# ---- Logs ----
+*.log
+*.bak
+
+# Sqlite
+.instance/
+
+/Logs
+
+# -- Envoriments --
+*.env
