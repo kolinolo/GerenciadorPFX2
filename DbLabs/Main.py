@@ -4,7 +4,7 @@ import sqlanydb
 import warnings
 import os
 
-from .consultaPostgress import getClientesBase, querryToDFPG, executaComando, appendDF
+from .consultaPostgress import getClientesBase, querryToDFPG, executaComando, appendDF, lastID
 
 from dotenv import load_dotenv
 
@@ -51,6 +51,7 @@ class buscaPostgres:
     querryToDFPG = staticmethod(querryToDFPG)
     executaComando = staticmethod(executaComando)
     appendDF = staticmethod(appendDF)
+    lastID = staticmethod(lastID)
 
 
 class buscaDominio:

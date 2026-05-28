@@ -1,13 +1,15 @@
 import time
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import create_engine
 import DbLabs # instalado no UV do projeto, faz referência ao DbLabs na pasta Libs desse pc
 from PrintTool import printTool
 import pandas as pd
-from datetime import datetime
 import os
+from datetime import datetime
 
 from Objetos.infoCert import certificadoLD
+
 from moveDescarta import descartaValidade, descartaNaoCliente, renomeia
 
 sqlEngine = create_engine('postgresql://Ethos:ethos789@192.168.2.10:1611/certificados')
@@ -27,6 +29,7 @@ etapa = printTool.configCentralizar(100, '~', skipRow=True).centralizar
 separador = printTool.configCentralizar(100, '-', skipRow=True).centralizar
 
 bd = DbLabs.buscaDominio()
+bp = DbLabs.buscaPostgres()
 
 base = pd.read_sql('''
                             SELECT cod, base.razao, cnpj
@@ -61,6 +64,8 @@ estatisticas = {'Empresas validas totais': len(base)}
 erros = pd.DataFrame(columns={'original':str,'erro':str,'origem':str})
 
 
+tz = ZoneInfo('America/Sao_Paulo')
+inicio = datetime.now(tz)
 # Funções etapas
 
 def segundaChanceNClientePJ():
@@ -518,6 +523,7 @@ try:
                     if_exists='replace')
     etapa(roxo('Clientes Atualizado'))
 
+    rSocios.drop_duplicates(subset=['cpf'],keep='first',inplace=True)
 
     estatisticas['Socios com certificado'] = len(rSocios[rSocios['certificado'] == True])
     estatisticas['Socios sem certificado'] = len(rSocios[rSocios['certificado'] == False])
@@ -527,6 +533,26 @@ try:
 
     estatisticas['erros'] = len(erros)
 
+
+    sql = f"""
+    
+    insert into execs_gerenciador values (
+    
+    {bp.lastID('execs_gerenciador', bd='certificados') +1},
+    true,
+    {estatisticas['Empresas validas totais']},
+    {estatisticas['totalPF']},
+    {estatisticas['totalPJ']},
+    {estatisticas['Socios com certificado']},
+    {estatisticas['Empresas com certificado']},
+    {estatisticas['Socios sem certificado']},
+    {estatisticas['Empresas sem certificado']},
+    {estatisticas['erros']},
+    {inicio.date()},
+    {inicio}
+             )                        
+    """
+    bp.executaComando(sql,bd='certificados')
 
 except Exception as e:
     print(e)
