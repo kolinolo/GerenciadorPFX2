@@ -539,7 +539,7 @@ try:
     insert into execs_gerenciador values (
     
     {bp.lastID('execs_gerenciador', bd='certificados') +1},
-    true,
+    false,
     {estatisticas['Empresas validas totais']},
     {estatisticas['totalPF']},
     {estatisticas['totalPJ']},
@@ -548,8 +548,8 @@ try:
     {estatisticas['Socios sem certificado']},
     {estatisticas['Empresas sem certificado']},
     {estatisticas['erros']},
-    {inicio.date()},
-    {inicio}
+    '{inicio.date()}',
+    '{inicio.replace(microsecond=0)}'
              )                        
     """
     bp.executaComando(sql,bd='certificados')
