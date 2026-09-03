@@ -23,7 +23,7 @@ def listdir(caminho):
     return [p.name for p in  Path(caminho).iterdir()]
 
 
-pgSTRcon = f'postgresql://Ethos:{os.getenv('PWDPG')}@{os.getenv('SERVIDOR')}:{os.getenv('PORTAPG')}'
+pgSTRcon = f'postgresql://{os.getenv('UIDPG')}:{os.getenv('PWDPG')}@{os.getenv('SERVIDOR')}:{os.getenv('PORTAPG')}'
 
 sqlEngine = create_engine(f'{pgSTRcon}/certificados')
 siegEngine = create_engine(f'{pgSTRcon}/Sieg')
