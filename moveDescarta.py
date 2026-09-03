@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from PrintTool import printTool
 import os
 import secrets
@@ -10,7 +12,7 @@ roxo = printTool.configColorizar('rosa', autoPrint=False).colorizar
 def renomeia(linha,p):
 
     if p == 'PF':
-        raiz = fr'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CPF'
+        raiz = Path(fr"{os.getenv('RAIZ')}/Certificados digitais/E-CPF")
 
         info = {
             'nome': linha['nome'],
@@ -23,7 +25,7 @@ def renomeia(linha,p):
         novo = f"{info['nome']} - {info['senha']} - {info['validade']} - {info['razao']}{info['tipo']}"
 
     else:
-        raiz = fr'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CNPJ'
+        raiz = Path(fr'{os.getenv('RAIZ')}/Certificados digitais/E-CNPJ')
 
         infos = {
             'razao': linha['razao'],
@@ -38,23 +40,17 @@ def renomeia(linha,p):
 
 
     try:
-        os.rename(
-            fr"{raiz}\{original}",
-            fr"{raiz}\{novo}"
-        )
+        Path(f"{raiz}/{original}").rename(fr"{raiz}/{novo}")
 
     except FileExistsError:
         try:
-            os.rename(
-                f"{raiz}/{original}",
-                f"{raiz}/Inválidos/Duplicados/{novo}"
-            )
+
+            Path(f"{raiz}/{original}").rename(f"{raiz}/Inválidos/Duplicados/{novo}")
+
         except FileExistsError:
 
-            os.rename(
-                f"{raiz}/{original}",
-                f"{raiz}/Inválidos/Duplicados/{novo}{secrets.randbits(15)}"
-            )
+            Path(f"{raiz}/{original}").rename(f"{raiz}/Inválidos/Duplicados/{secrets.randbits(15)}-{novo}")
+
 
     verde(f'\n{original}:\n'
           f'{novo}\n')
@@ -62,7 +58,7 @@ def renomeia(linha,p):
 
 def descartaValidade(linha,p,subpasta=''):
     if p == 'PF':
-        raiz = fr'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CPF'
+        raiz = Path(fr'{os.getenv('RAIZ')}/Certificados digitais/E-CPF')
 
         info = {
             'nome': linha['nome'],
@@ -75,7 +71,7 @@ def descartaValidade(linha,p,subpasta=''):
         novo = f"{info['nome']} - {info['senha']} - {info['validade']} - {info['razao']}{info['tipo']}"
 
     else:
-        raiz = fr'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CNPJ'
+        raiz = Path(fr'{os.getenv('RAIZ')}/Certificados digitais/E-CNPJ')
 
         infos = {
             'razao': linha['razao'],
@@ -89,22 +85,21 @@ def descartaValidade(linha,p,subpasta=''):
         novo = f"{infos['razao']} - {infos['senha']} - {infos['validade']} - {infos['cod']}{infos['tipo']}"
 
     try:
-        os.rename(
-            fr"{raiz}\{subpasta}{original}",
-            fr"{raiz}\Inválidos\Validade expirada\{novo}"
-        )
+        Path(
+            fr"{raiz}/{subpasta}{original}").rename(fr"{raiz}/Inválidos/Validade expirada/{novo}")
+
         amarelo(f'Vencido: {novo}')
 
     except FileExistsError:
 
-        os.remove(fr'{raiz}\{subpasta}{original}')
+        Path(fr'{raiz}/{subpasta}{original}').unlink()
         amarelo(f'Vencido e duplicado: {original} deletado')
 
 
 def descartaNaoCliente(linha, p):
 
     if p == 'PF':
-        raiz = fr'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CPF'
+        raiz = Path(fr'{os.getenv('RAIZ')}/Certificados digitais/E-CPF')
 
         info = {
             'nome': linha['nome'],
@@ -115,10 +110,10 @@ def descartaNaoCliente(linha, p):
 
         original = linha['original']
         novo = fr"{info['nome']} - {info['senha']} - {info['validade']} - {info['razao']}{info['tipo']}"
-        pasta = f"\\Não Cliente\\"
+        pasta = f"/Não Cliente/"
 
     else:
-        raiz = fr'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CNPJ'
+        raiz = fr'{os.getenv('RAIZ')}/Certificados digitais/E-CNPJ'
 
         infos = {
             'razao': linha['razao'],
@@ -130,17 +125,14 @@ def descartaNaoCliente(linha, p):
 
         original = linha['original']
         novo = fr"{infos['razao']} - {infos['senha']} - {infos['validade']} - {infos['cod']}{infos['tipo']}"
-        pasta = f"\\Inválidos\\Não clientes\\"
+        pasta = f"/Inválidos/Não clientes/"
     try:
-        os.rename(
-            fr"{raiz}\{original}",
-            fr"{raiz}{pasta}{novo}"
-        )
+        Path(fr"{raiz}/{original}").rename(fr"{raiz}{pasta}{novo}")
+
+
 
     except FileExistsError:
 
-        os.rename(
-            fr"{raiz}\{original}",
-            fr"{raiz}\Inválidos\Duplicados\{original}{secrets.randbits(15)}")
+        Path(fr"{raiz}/{original}").rename(fr"{raiz}/Inválidos/Duplicados/{secrets.randbits(15)}-{original}")
 
     vermelho(fr'Não cliente {novo}')

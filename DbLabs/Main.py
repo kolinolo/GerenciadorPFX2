@@ -4,11 +4,12 @@ import sqlanydb
 import warnings
 import os
 
-from .consultaPostgress import getClientesBase, querryToDFPG, executaComando, appendDF
+from .consultaPostgress import getClientesBase, querryToDFPG, executaComando, appendDF,lastID
 from .exceptions import CNPJInvalido
 
 
 from dotenv import load_dotenv
+
 
 load_dotenv(r".env")
 
@@ -64,6 +65,7 @@ class buscaPostgres:
     querryToDFPG = staticmethod(querryToDFPG)
     executaComando = staticmethod(executaComando)
     appendDF = staticmethod(appendDF)
+    lastID = staticmethod(lastID)
 
 
 class buscaDominio:
@@ -89,26 +91,13 @@ class buscaDominio:
 
     def novaConexao(self):
 
-        sucesso = False
-        falhas = 0
-        conexao = None
+        conexao = sqlanydb.connect(uid=self.uid,
+                                   pwd=self.pwd,
+                                   host=self.host,
+                                   AutoStop="Yes",
+                                   charset='latin1')
 
-        while not sucesso:
 
-            try:
-                conexao = sqlanydb.connect(uid=self.uid,
-                                           pwd=self.pwd,
-                                           host=self.host,
-                                           AutoStop="Yes",
-                                           charset='latin1')
-                sucesso = True
-
-            except Exception as e:
-                falhas = falhas + 1
-
-                if falhas == 1:
-                    print(e)
-                print(f"Falha : {falhas} ")
 
         return conexao
 

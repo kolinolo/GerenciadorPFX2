@@ -9,11 +9,18 @@ import os
 from zoneinfo import ZoneInfo
 from sqlalchemy import create_engine
 from datetime import datetime
+from pathlib import Path
 
 from Objetos.infoCert import certificadoLD
 from PrintTool import printTool
 from moveDescarta import descartaValidade, descartaNaoCliente, renomeia
 
+
+raiz = os.getenv('RAIZ')
+
+def listdir(caminho):
+    
+    return [p.name for p in  Path(caminho).iterdir()]
 
 
 pgSTRcon = f'postgresql://Ethos:{os.getenv('PWDPG')}@{os.getenv('SERVIDOR')}:{os.getenv('PORTAPG')}'
@@ -75,11 +82,11 @@ inicio = datetime.now(tz)
 
 def segundaChanceNClientePJ():
 
-    diretorio = r'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CNPJ\Inválidos\Não clientes'
-    reviveDir = r'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CNPJ'
+    diretorio = Path(fr'{raiz}/Certificados digitais/E-CNPJ/Inválidos/Não clientes')
+    reviveDir = Path(fr'{raiz}/Certificados digitais/E-CNPJ')
 
     certs = []
-    for arquivo in os.listdir(diretorio):
+    for arquivo in listdir(diretorio):
 
         if arquivo.endswith(('pfx', 'p12')):
             certs.append(arquivo)
@@ -98,7 +105,7 @@ def segundaChanceNClientePJ():
     for cert in certs:
 
         try:
-            leitura = certificadoLD(cert, diretorio)
+            leitura = certificadoLD(cert, str(diretorio))
 
             pj.loc[len(pj)] = [len(pj),
                                cert,
@@ -119,23 +126,24 @@ def segundaChanceNClientePJ():
 
     # Volta para pasta dos válidos
     for reviver in pjs[pjs['status'] != 'I']['original'].tolist():
-        os.rename(fr'{diretorio}\{reviver}',
-                  fr'{reviveDir}\{reviver}')
+
+        Path(fr'{diretorio}/{reviver}').rename(fr'{reviveDir}/{reviver}')
+
         verde(f"cliente recuperado {reviver}")
 
     # Descarta expirados
     for expirado in pjs[(pjs['validade'] < hoje) & (pjs['status'] == 'I')].index:
-        descartaValidade(pjs.iloc[expirado],'PJ',subpasta='Inválidos\\Não clientes\\')
+        descartaValidade(pjs.iloc[expirado],'PJ',subpasta='Inválidos/Não clientes/')
 
 
     del pjs, pj
 
 def segundaChanceNClientePF():
-    diretorio = r'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CPF\Não Cliente'
-    reviveDir = r'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CPF'
+    diretorio = Path(fr'{raiz}/Certificados digitais/E-CPF/Não Cliente')
+    reviveDir = Path(fr'{raiz}/Certificados digitais/E-CPF')
 
     certs = []
-    for arquivo in os.listdir(diretorio):
+    for arquivo in listdir(diretorio):
 
         if arquivo.endswith(('pfx', 'p12')):
             certs.append(arquivo)
@@ -153,7 +161,7 @@ def segundaChanceNClientePF():
     for cert in certs:
 
         try:
-            leitura = certificadoLD(cert, diretorio)
+            leitura = certificadoLD(cert, str(diretorio))
 
             pf.loc[len(pf)] = [len(pf),
                                cert,
@@ -175,17 +183,17 @@ def segundaChanceNClientePF():
 
     # Volta para pasta dos válidos
     for reviver in pfs[pfs['razao'] != 'Não Cliente']['original'].tolist():
-        os.rename(fr'{diretorio}\{reviver}',
-                  fr'{reviveDir}\{reviver}')
+        os.rename(fr'{diretorio}/{reviver}',
+                  fr'{reviveDir}/{reviver}')
         verde(f"cliente recuperado {reviver}")
 
     for expirado in pfs[(pfs['validade'] < hoje) & (pfs['razao'] == 'Não Cliente')].index:
-        descartaValidade(pfs.iloc[expirado],'PF',subpasta='Não Cliente\\')
+        descartaValidade(pfs.iloc[expirado],'PF',subpasta='Não Cliente/')
 
 
 def inicializarPF():
     certs = []
-    raiz = fr'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CPF'
+    raiz = fr'{os.getenv("RAIZ")}/Certificados digitais/E-CPF'
 
     pf = pd.DataFrame(columns={
         'id': int,
@@ -198,7 +206,7 @@ def inicializarPF():
     })
 
 
-    diretorio = os.listdir(raiz)
+    diretorio = listdir(raiz)
     for arquivo in diretorio:
         if arquivo.endswith(('pfx','p12')):
             certs.append(arquivo)
@@ -248,8 +256,8 @@ def inicializarPF():
 def inicializarPJ():
 
     certs = []
-    raiz = fr'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CNPJ'
-    diretorio = os.listdir(raiz)
+    raiz = fr'{os.getenv('RAIZ')}/Certificados digitais/E-CNPJ'
+    diretorio = listdir(raiz)
 
     pj = pd.DataFrame(columns={
                     'id':int,
@@ -414,10 +422,10 @@ for i in range(len(erros)):
     linhaA = erros.iloc[i]
 
     if linhaA['origem'] == 'PF':
-        R = fr'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CPF'
+        R = fr'{raiz}/Certificados digitais/E-CPF'
 
     else:
-        R = fr'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CNPJ'
+        R = fr'{raiz}/Certificados digitais/E-CNPJ'
 
     original = linhaA['original']
 
@@ -428,10 +436,7 @@ for i in range(len(erros)):
         case 'Formatação ou senha incorreta':
 
             try:
-                os.rename(
-                    fr"{R}\{original}",
-                    fr"{R}\Inválidos\Senha Incorreta\{original}"
-                )
+                Path(fr"{R}/{original}").rename(fr"{R}/Inválidos/Senha Incorreta/{original}")
 
                 amarelo(f'{original} --> formatação ou senha incorreta')
 
@@ -441,10 +446,7 @@ for i in range(len(erros)):
         case 'Falha na leitura':
 
             try:
-                os.rename(
-                    fr"{R}\{original}",
-                    fr"{R}\Inválidos\Senha Incorreta\{original}"
-                )
+                Path(fr"{R}/{original}").rename(fr"{R}/Inválidos/Senha Incorreta/{original}")
 
                 amarelo(f'{original} --> Senha Incorreta')
 
@@ -453,10 +455,7 @@ for i in range(len(erros)):
 
         case "Pasta incorreta: PJ em PF":
             try:
-                os.rename(
-                    fr"{R}\{original}",
-                    fr'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CNPJ\{original}'
-                )
+                Path(fr"{R}/{original}").rename(fr'{raiz}/Certificados digitais/E-CNPJ/{original}')
 
                 verde(f'Certificado transferido: {original} -> E-CNPJ')
 
@@ -465,10 +464,8 @@ for i in range(len(erros)):
 
         case "Pasta incorreta: PF em PJ":
             try:
-                os.rename(
-                    fr"{R}\{original}",
-                    fr'\\servidor\Ethos\SERVIDOR\Certificados digitais\E-CPF\{original}'
-                )
+                Path(
+                    fr"{R}/{original}").rename(fr'{raiz}/Certificados digitais/E-CPF/{original}')
 
                 verde(f'Certificado transferido: {original} -> E-CPF')
 

@@ -1,7 +1,6 @@
 import datetime
 import os
-
-
+from pathlib import Path
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import pkcs12
@@ -39,7 +38,7 @@ class certificadoLD:
 
         try:
             # Ler o arquivo
-            with open(rf'{self.RAIZ}\{self.arquivo}', "rb") as f:
+            with open(Path(rf'{self.RAIZ}/{self.arquivo}'), "rb") as f:
                 criptografado = f.read()
                 infos = pkcs12.load_key_and_certificates(criptografado, pfx_password, backend=default_backend())[1]
                 self.criacao = infos.not_valid_before_utc.date()
@@ -47,7 +46,7 @@ class certificadoLD:
                 self.PF_PJ = infos.subject.rdns[-1].rfc4514_string().split(":")[1]
                 self.razao = infos.subject.rdns[-1].rfc4514_string().split(":")[0].replace("CN=", "")
 
-        except:
+        except Exception as e:
 
             print(self.arquivo, "Senha Invalida")
 
