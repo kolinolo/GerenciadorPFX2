@@ -6,12 +6,12 @@ from dotenv import load_dotenv
 
 import os
 
-if 'DbLabs.env' not in os.listdir(os.getcwd()):
+if '.env' not in os.listdir(os.getcwd()):
     print('O ambiente do Dblabs NÃO foi setado')
 
     raise EnvironmentNotSetError(os.getcwd())
 
-load_dotenv(r"DbLabs.env")
+load_dotenv(r".env")
 
 UID = os.getenv('UIDPG')
 PWD = str(os.getenv('PWDPG'))
@@ -19,11 +19,15 @@ PORTA = os.getenv('PORTAPG')
 SERVIDOR = os.getenv('SERVIDOR')
 conexao = f'postgresql://{UID}:{PWD}@{SERVIDOR}:{PORTA}/'
 
+
 engine = create_engine(conexao)
 
 
+
+
 def getEngine(bd):
-    if bd != '' and bd is not None:
+
+    if bd:
 
         return create_engine(f'{conexao}{bd}')
 
@@ -53,6 +57,7 @@ def getClientesBase():
 
 
 def querryToDFPG(query: str, bd=''):
+
     localEngine = getEngine(bd)
 
     retorno = pd.read_sql(query, localEngine)
@@ -61,9 +66,9 @@ def querryToDFPG(query: str, bd=''):
 
 
 def executaComando(sql, bd=None):
-    if bd != '':
+    if bd:
 
-        localEngine = create_engine(f'{conexao}{bd}')
+        localEngine = create_engine(f'{conexao}/{bd}')
 
     else:
         localEngine = engine
@@ -86,7 +91,9 @@ def executaComando(sql, bd=None):
     pass
 
 
-def appendDF(tabela, df, bd='', unique=False):
+def appendDF(tabela,df,  bd='', unique=False):
+
+
     colunas = df.columns.tolist()
     localEngine = getEngine(bd)
 
@@ -95,13 +102,15 @@ def appendDF(tabela, df, bd='', unique=False):
 
     try:
 
-        sql = text(f"""
 
+        sql = text(f"""
+        
                 INSERT INTO {tabela} ({','.join(colunas)})
                 VALUES ({','.join(':' + c for c in colunas)})
                 {'ON CONFLICT DO NOTHING' if unique else ''}
-
+                    
                     """)
+
 
         dados = df.to_dict(orient='records')
 
@@ -116,11 +125,10 @@ def appendDF(tabela, df, bd='', unique=False):
 
     session.close()
 
-
-def lastID(tabela: str, coluna: str = 'id', bd=''):
+def lastID(tabela:str,coluna:str ='id', bd=''):
     """Retorna o maior valor de uma coluna, usado para auto incrementar"""
 
-    df = querryToDFPG(f'select {coluna} from {tabela}', bd=bd)
+    df = querryToDFPG(f'select {coluna} from {tabela}',bd=bd)
 
     return df[coluna].max()
 

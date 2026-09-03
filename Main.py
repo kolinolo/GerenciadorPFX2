@@ -1,21 +1,26 @@
-import time
-from zoneinfo import ZoneInfo
+import dotenv
+dotenv.load_dotenv('.env')
 
-from sqlalchemy import create_engine
-import DbLabs # instalado no UV do projeto, faz referência ao DbLabs na pasta Libs desse pc
-from PrintTool import printTool
+import DbLabs
 import pandas as pd
+import time
 import os
+
+from zoneinfo import ZoneInfo
+from sqlalchemy import create_engine
 from datetime import datetime
 
 from Objetos.infoCert import certificadoLD
-
+from PrintTool import printTool
 from moveDescarta import descartaValidade, descartaNaoCliente, renomeia
 
-sqlEngine = create_engine('postgresql://Ethos:ethos789@192.168.2.10:1611/certificados')
-siegEngine = create_engine('postgresql://Ethos:ethos789@192.168.2.10:1611/Sieg')
 
-pd.set_option('future.no_silent_downcasting', True)
+
+pgSTRcon = f'postgresql://Ethos:{os.getenv('PWDPG')}@{os.getenv('SERVIDOR')}:{os.getenv('PORTAPG')}'
+
+sqlEngine = create_engine(f'{pgSTRcon}/certificados')
+siegEngine = create_engine(f'{pgSTRcon}/Sieg')
+
 
 os.system('cls' if os.name == 'nt' else 'clear')
 vermelho = printTool.configColorizar('vermelho', autoPrint=True).colorizar
@@ -493,7 +498,7 @@ socios = socios[socios['cpf'].str.len() == 11]
 pfValidos = pf[pf['validade'] > hoje][['cpf']].reset_index(drop=True)
 pfValidos['valido'] = True
 
-socios = pd.merge(socios,pfValidos,on='cpf',how='left')
+socios = pd.merge(socios,pfValidos,on='cpf',how='left').astype({'valido':bool})
 socios.fillna({'valido':False},inplace=True)
 
 rSocios = socios[['nome','cpf','valido','responsavel','cod','razao'
@@ -503,7 +508,7 @@ pjValidos = pj[pj['validade'] > hoje][['cod','validade']].astype({'cod': int})
 pjValidos['valido'] = True
 
 
-empresas = pd.merge(base,pjValidos,on='cod',how='left')
+empresas = pd.merge(base,pjValidos,on='cod',how='left').astype({'valido':bool})
 empresas.drop_duplicates(subset=['cnpj'],keep='last',inplace=True)
 empresas.fillna({'valido':False},inplace=True)
 

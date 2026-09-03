@@ -4,46 +4,59 @@ import sqlanydb
 import warnings
 import os
 
-from .consultaPostgress import getClientesBase, querryToDFPG, executaComando, appendDF, lastID
+from .consultaPostgress import getClientesBase, querryToDFPG, executaComando, appendDF
+from .exceptions import CNPJInvalido
+
 
 from dotenv import load_dotenv
 
-load_dotenv(r"DbLabs.env")
+load_dotenv(r".env")
 
 warnings.simplefilter(action='ignore', category=UserWarning)
-print("DBLabs iniciado na pasta Libs")
+print("DBLabs iniciado no AutoBalanco")
 
 QUERYBASE = """
-            WITH municipios as (SELECT codigo_municipio as cod_mun, nome_municipio as municipio FROM bethadba.gemunicipio) \
+            WITH municipios as (SELECT codigo_municipio as cod_mun, nome_municipio as municipio FROM bethadba.gemunicipio) 
 
 
-            SELECT codi_emp      as cod, \
-                   razao_emp     as razao, \
-                   cgce_emp      as CNPJ, \
-                   fantasia_emp  as nomeFantasia, \
+            SELECT codi_emp      as cod, 
+                   razao_emp     as razao, 
+                   cgce_emp      as CNPJ, 
+                   fantasia_emp  as nomeFantasia, 
                    ramo_emp      as Ramo,
-                   mun.municipio as municipio, \
-                   cepe_emp      as cepe, \
-                   bair_emp      as bairro, \
-                   ende_emp      as logradouro, \
+                   mun.municipio as municipio, 
+                   cepe_emp      as cepe, 
+                   bair_emp      as bairro, 
+                   ende_emp      as logradouro, 
                    nume_emp      as numero,
-                   esta_emp      as estado, \
-                   cep_leg_emp   as cepeResp, \
-                   stat_emp      as situacao, \
+                   esta_emp      as estado, 
+                   cep_leg_emp   as cepeResp, 
+                   stat_emp      as situacao, 
                    bair_leg_emp     bairro_resp,
-                   end_leg_emp   as logradouro_resp, \
-                   nume_leg_emp  as numero_resp, \
-                   mun_leg_emp   as municipio_resp, \
+                   end_leg_emp   as logradouro_resp, 
+                   nume_leg_emp  as numero_resp, 
+                   mun_leg_emp   as municipio_resp, 
                    rleg_emp      as nome_resp,
-                   cpf_leg_emp   as cpf_resp, \
-                   dtinicio_emp  as dataInicio \
+                   cpf_leg_emp   as cpf_resp, 
+                   dcad_emp  as dataInicio, 
+                   dina_emp  as dataInativada, 
+                   i_cnae20   as cnae,
+                    iest_emp as i_estadual
 
 
-            FROM bethadba.geempre emp \
+            FROM bethadba.geempre emp 
                      join municipios mun ON emp.codigo_municipio = mun.cod_mun
-            where cod < 900 \
+            where cod < 900 
 
             """
+
+QUERYSOCIOS = """select  s1.nome ,s1.inscricao as cpf,e.codi_emp as cod,
+        e.razao_emp as razao, e.cpf_leg_emp
+from bethadba.gequadrosocietario_socios s join bethadba.gesocios s1
+    on s1.i_socio = s.i_socio
+
+left join bethadba.geempre e on s.codi_emp = e.codi_emp
+order by s1.nome"""
 
 
 class buscaPostgres:
@@ -51,7 +64,6 @@ class buscaPostgres:
     querryToDFPG = staticmethod(querryToDFPG)
     executaComando = staticmethod(executaComando)
     appendDF = staticmethod(appendDF)
-    lastID = staticmethod(lastID)
 
 
 class buscaDominio:
@@ -64,8 +76,12 @@ class buscaDominio:
 
 
         self.DFB = pd.merge(self.querryToDF(QUERYBASE), self.tabelaRegimes()[['cod','regime']], on='cod', how='left')
+        self.DFB['regime'] = self.DFB['regime'].fillna('')
+        self.DFB['cnae'] = self.DFB['cnae'].fillna('')
+        self.DFB = self.DFB.sort_values(by=['cod'], ascending=True)
 
 
+        self.dfSocios = self.querryToDF(QUERYSOCIOS)
 
         self.listaClientes = []
         self.ultimoCliente = 0
@@ -96,7 +112,7 @@ class buscaDominio:
 
         return conexao
 
-    def listarClientes(self):
+    def listarClientes(self,orderByRazao=True):
 
         clientes = []
 
@@ -126,23 +142,28 @@ class buscaDominio:
                               self.DFB.at[linha, 'CNPJ'],
                               self.DFB.at[linha, 'Ramo'],
                               self.DFB.at[linha, 'dataInicio'],
+                              self.DFB.at[linha, 'dataInativada'],
                               self.DFB.at[linha, 'situacao'],
                               self.DFB.at[linha, 'regime'],
-                              enderecoCliente, responsavelLeg)
+                              enderecoCliente, responsavelLeg,
+                              self.DFB.at[linha, 'cnae'],
+                              self.DFB.at[linha, 'i_estadual'],
+                              socios = self.getSocios(self.DFB.at[linha, 'cod']))
 
             if self.ultimoCliente < cliente.cod:
                 self.ultimoCliente = cliente.cod
 
             clientes.append(cliente)
 
-        for ct in range(len(clientes)):  # Cliente atual
+        if orderByRazao:
+            for ct in range(len(clientes)):  # Cliente atual
 
-            for cc in range(ct, len(clientes)):  # Comparativo
+                for cc in range(ct, len(clientes)):  # Comparativo
 
-                if clientes[ct].razao > clientes[cc].razao:
-                    tempCliente = clientes[ct]
-                    clientes[ct] = clientes[cc]
-                    clientes[cc] = tempCliente
+                    if clientes[ct].razao > clientes[cc].razao:
+                        tempCliente = clientes[ct]
+                        clientes[ct] = clientes[cc]
+                        clientes[cc] = tempCliente
 
         self.listaClientes = clientes
         return clientes
@@ -169,10 +190,23 @@ class buscaDominio:
 
         return clientesDoRamo
 
-    def buscaCNPJ(self, CNPJ):
+    def buscaCNPJ(self, CNPJ: str)-> Cliente|None:
+
+
+        CNPJ = CNPJ.replace(".", "")
+        CNPJ = CNPJ.replace("/", "")
+        CNPJ = CNPJ.replace("-", "")
+        CNPJ = CNPJ.replace(" ", "")
+
+
+        if len(CNPJ) not in  (14, 12 , 8):
+            raise CNPJInvalido(CNPJ)
+
         for temp in self.listaClientes:
-            if temp.cnpj == CNPJ:
+
+            if temp.cnpj == CNPJ or temp.cnpj.startswith(CNPJ):
                 return temp
+
         return None
 
     def buscaPorCod(self, cod):
@@ -221,7 +255,7 @@ class buscaDominio:
                FROM bethadba.geempre \
                where cgce_emp not REGEXP '(.)*0001(.)*' and cod < 900"""
 
-        df: pd.DataFrame = self.querryToDF(q)
+        df: pd.DataFrame = self.querryToDF(q).astype({'cod':str})
         return df
 
     def getMatrizDF(self):
@@ -232,7 +266,7 @@ class buscaDominio:
                FROM bethadba.geempre \
                where cgce_emp REGEXP '(.)*0001(.)*' and cod < 900"""
 
-        df: pd.DataFrame = self.querryToDF(q)
+        df: pd.DataFrame = self.querryToDF(q).astype({'cod':str})
 
         return df
 
@@ -285,6 +319,7 @@ class buscaDominio:
 
               SELECT geempre.razao_emp as razao,
                      geempre.codi_emp as cod,
+                     geempre.stat_emp as stat,
 
                      EFPARAMETRO_VIGENCIA.RFED_PAR regime
 
@@ -308,12 +343,12 @@ class buscaDominio:
 
         return df
 
-    def isSN(self,cods):
+    def isSN(self,cods: tuple|list|str):
 
-        df = self.tabelaRegimes().astype({'codi_emp':str})
+        df = self.tabelaRegimes().astype({'cod':str})
         df = df[df['regime'] == 'Simples Nacional']
 
-        sn = df['codi_emp'].tolist()
+        sn = df['cod'].tolist()
 
 
         if type(cods) in [tuple,list]:
@@ -337,3 +372,14 @@ class buscaDominio:
 
             else:
                 return False
+
+    def getSocios(self,cod):
+
+        sociosEmp = self.dfSocios[self.dfSocios['cod'] == cod].copy()
+        sociosEmp['resp_leg'] = sociosEmp['cpf'] == sociosEmp['cpf_leg_emp']
+
+        sociosEmp.drop_duplicates(subset='cpf',inplace=True)
+
+        socios = sociosEmp[['nome','cpf','resp_leg']].to_dict(orient='records')
+
+        return socios
