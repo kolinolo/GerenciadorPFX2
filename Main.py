@@ -23,10 +23,16 @@ def listdir(caminho):
     return [p.name for p in  Path(caminho).iterdir()]
 
 
-pgSTRcon = f'postgresql://{os.getenv('UIDPG')}:{os.getenv('PWDPG')}@{os.getenv('SERVIDOR')}:{os.getenv('PORTAPG')}'
+UID = os.getenv('UIDPG')
+PWD = str(os.getenv('PWDPG'))
+PORTA = os.getenv('PORTAPG')
+SERVIDOR = os.getenv('SERVIDOR')
 
-sqlEngine = create_engine(f'{pgSTRcon}/certificados')
-siegEngine = create_engine(f'{pgSTRcon}/Sieg')
+pgSTRcon = fr'postgresql://{UID}:{PWD}@{SERVIDOR}:{PORTA}/'
+
+
+
+
 
 
 os.system('cls' if os.name == 'nt' else 'clear')
@@ -43,13 +49,10 @@ separador = printTool.configCentralizar(100, '-', skipRow=True).centralizar
 bd = DbLabs.buscaDominio()
 bp = DbLabs.buscaPostgres()
 
-base = pd.read_sql('''
-                            SELECT cod, base.razao, cnpj
-                            FROM relatorios.base
-                                     LEFT JOIN relatorios.ret ON ret.razao = base.razao
-                            
-                            WHERE (ret.matriz IS NULL or ret.matriz = base.cod) 
-                                      AND status != 'I' and tipo_cert != 'A3';''', siegEngine).astype({'cod':int})
+sqlEngine = bp.getEngine('certificados')
+
+base = bd.DFB[['cod','razao', 'CNPJ','regime','tipo_cert','situacao']].rename(columns={'CNPJ':'cnpj'})
+base = base[(base['situacao'] != 'I') & (base['tipo_cert']!= 'A3')]
 
 
 socios = bd.querryToDF("""
@@ -554,7 +557,7 @@ try:
     '{inicio.replace(microsecond=0)}'
              )                        
     """
-    bp.executaComando(sql,bd='certificados')
+    bp.executaComando(sql,'certificados')
 
 except Exception as e:
     print(e)

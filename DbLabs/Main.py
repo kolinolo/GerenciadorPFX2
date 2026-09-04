@@ -4,7 +4,7 @@ import sqlanydb
 import warnings
 import os
 
-from .consultaPostgress import getClientesBase, querryToDFPG, executaComando, appendDF,lastID
+from .consultaPostgress import getClientesBase, querryToDFPG, executaComando, appendDF,lastID,getEngine
 from .exceptions import CNPJInvalido
 
 
@@ -20,7 +20,7 @@ QUERYBASE = """
             WITH municipios as (SELECT codigo_municipio as cod_mun, nome_municipio as municipio FROM bethadba.gemunicipio) 
 
 
-            SELECT codi_emp      as cod, 
+            SELECT emp.codi_emp      as cod, 
                    razao_emp     as razao, 
                    cgce_emp      as CNPJ, 
                    fantasia_emp  as nomeFantasia, 
@@ -42,11 +42,15 @@ QUERYBASE = """
                    dcad_emp  as dataInicio, 
                    dina_emp  as dataInativada, 
                    i_cnae20   as cnae,
-                    iest_emp as i_estadual
+                    iest_emp as i_estadual ,
+                REPLACE(REPLACE(tipo, 1, 'A1'), 2, 'A3') AS tipo_cert
 
 
             FROM bethadba.geempre emp 
-                     join municipios mun ON emp.codigo_municipio = mun.cod_mun
+                
+                     left join municipios mun ON emp.codigo_municipio = mun.cod_mun
+                    left join bethadba.GECERTIFICADOSDIGITAIS C on emp.codi_emp = C.CODI_EMP
+                
             where cod < 900 
 
             """
@@ -66,6 +70,7 @@ class buscaPostgres:
     executaComando = staticmethod(executaComando)
     appendDF = staticmethod(appendDF)
     lastID = staticmethod(lastID)
+    getEngine = staticmethod(getEngine)
 
 
 class buscaDominio:
